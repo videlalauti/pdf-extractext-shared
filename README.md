@@ -23,10 +23,24 @@ pip install "https://github.com/videlalauti/pdf-extractext-shared/archive/refs/t
 ```
 
 El paquete **no tiene dependencias de runtime obligatorias**. Solo `extraction`
-extrae texto, así que es el único que agrega el extra:
+extrae texto, así que es el único que agrega el extra. El extra se pide con una
+referencia directa PEP 508 (`nombre[extra] @ url`): `URL[pypdf]` no funciona,
+porque pip interpretaría los corchetes como parte de la URL y daría 404.
 
 ```bash
-pip install "https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.0.0.zip[pypdf]"
+pip install "pdf-extractext-shared[pypdf] @ https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.0.0.zip"
+```
+
+En `requirements.txt`, que es como lo van a usar los servicios:
+
+```text
+# validation / persistence / summary
+pdf-extractext-shared @ https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.0.0.zip
+```
+
+```text
+# extraction
+pdf-extractext-shared[pypdf] @ https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.0.0.zip
 ```
 
 | Servicio | Instala | Usa `pypdf` |
@@ -41,8 +55,8 @@ pip install "https://github.com/videlalauti/pdf-extractext-shared/archive/refs/t
 1. Borrar la copia local: `shared/domain/` (el `__init__.py` de `shared/` queda,
    o se borra también si el servicio ya no tiene código propio ahí).
 2. Sacar `shared/` del `.dockerignore` si estaba excluido.
-3. Agregar la URL pinneada al tag a `requirements.txt` (con `[pypdf]` solo en
-   `extraction`).
+3. Reemplazar la copia en `requirements.txt` por la referencia directa al tag
+   (con el extra `[pypdf]` solo en `extraction`).
 4. Borrar el `sys.path.insert` de `tests/conftest.py` si solo estaba para que
    `import shared` encontrara la copia local.
 5. Quitar `tests/test_pdf_validator.py` y `tests/test_pypdf_text_extractor.py`
