@@ -51,13 +51,18 @@ jobs:
           python - <<'PY'
           from importlib.metadata import version
 
-          import shared.domain.pdf_validator
+          from shared.domain.pdf_validator import PdfValidator
           import shared.web.cors
           import shared.web.logging
           import shared.web.resilience
 
           assert version("pdf-extractext-shared") == "1.0.0", "versión inesperada"
-          assert shared.domain.pdf_validator.PdfValidator(b"%PDF-").is_valid is False
+
+          validator = PdfValidator(max_size_bytes=1024)
+          assert validator.validate(b"%PDF-1.4").is_valid is True
+          assert validator.validate(b"not a pdf").is_valid is False
+          assert validator.validate(b"").is_valid is False
+
           print("instalación OK: pdf-extractext-shared", version("pdf-extractext-shared"))
           PY
 
@@ -66,10 +71,23 @@ jobs:
           # validation/persistence/summary instalan sin el extra pypdf: si el
           # paquete lo importara al cargar, los 3 servicios no podrían arrancar.
           python - <<'PY'
+          import importlib.util
+
           import shared.domain
-          from shared.domain import PdfValidator, has_pdf_extension
+          from shared.domain import MAX_PDF_SIZE_BYTES, PdfValidator, has_pdf_extension
 
           assert has_pdf_extension("a.pdf") is True
-          assert isinstance(PdfValidator(10), PdfValidator)
+          assert MAX_PDF_SIZE_BYTES == 10 * 1024 * 1024
+          assert PdfValidator(MAX_PDF_SIZE_BYTES).validate(b"%PDF-1.4").is_valid is True
+
+          assert importlib.util.find_spec("pypdf") is None, "pypdf no debería estar instalado"
+
+          try:
+              shared.domain.PyPdfTextExtractor
+          except ModuleNotFoundError as e:
+              print("import diferido de PyPdfTextExtractor:", e.name)
+          else:
+              raise AssertionError("pypdf se importó sin estar instalado")
+
           print("shared.domain importa sin pypdf: OK")
           PY
