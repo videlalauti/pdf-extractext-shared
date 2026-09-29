@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    name: ruff + pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,pypdf]"
+
+      - name: ruff check
+        run: ruff check .
+
+      - name: pytest
+        run: pytest tests/ -v
+
+  install-from-url:
+    name: instalar desde la URL del tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar el paquete desde el zip del tag, sin git ni registry
+        run: |
+          python -m pip install --upgrade pip
+          pip install "https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.0.0.zip"
+
+      - name: Verificar la instalación y sus metadatos
+        run: |
+          python - <<'PY'
+          from importlib.metadata import version
+
+          import shared.domain.pdf_validator
+          import shared.web.cors
+          import shared.web.logging
+          import shared.web.resilience
+
+          assert version("pdf-extractext-shared") == "1.0.0", "versión inesperada"
+          assert shared.domain.pdf_validator.PdfValidator(b"%PDF-").is_valid is False
+          print("instalación OK: pdf-extractext-shared", version("pdf-extractext-shared"))
+          PY
+
+      - name: El dominio no debe arrastrar pypdf
+        run: |
+          # validation/persistence/summary instalan sin el extra pypdf: si el
+          # paquete lo importara al cargar, los 3 servicios no podrían arrancar.
+          python - <<'PY'
+          import shared.domain
+          from shared.domain import PdfValidator, has_pdf_extension
+
+          assert has_pdf_extension("a.pdf") is True
+          assert isinstance(PdfValidator(10), PdfValidator)
+          print("shared.domain importa sin pypdf: OK")
+          PY

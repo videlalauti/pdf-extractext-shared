@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pdf-extractext-shared"
+version = "1.0.0"
+description = "Dominio y utilidades web compartidas por los microservicios de PDF ExtractExt"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+authors = [{ name = "Lautaro Videla" }]
+keywords = ["pdf", "microservices", "domain", "shared"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+# Sin dependencias de runtime obligatorias: cada servicio instala solo lo que usa.
+dependencies = []
+
+[project.optional-dependencies]
+# Solo extraction extrae texto; el resto del paquete funciona sin pypdf.
+pypdf = ["pypdf"]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.6",
+]
+
+[project.urls]
+Homepage = "https://github.com/videlalauti/pdf-extractext-shared"
+Source = "https://github.com/videlalauti/pdf-extractext-shared"
+
+[tool.setuptools]
+packages = ["shared", "shared.domain", "shared.web"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "strict"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
