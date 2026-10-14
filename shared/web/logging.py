@@ -7,6 +7,7 @@ la cabecera `X-Request-Id` y se propaga al peer en la respuesta.
 
 import logging
 import sys
+import time
 import uuid
 from contextvars import ContextVar
 from typing import Any
@@ -135,3 +136,59 @@ class RequestIdMiddleware:
         finally:
             # Sin el reset, el id se filtraría a la siguiente task del worker.
             reset_request_id(token)
+
+
+logger = logging.getLogger(__name__)
+
+_SERVER_ERROR_STATUS = 500
+
+
+class TimingMiddleware:
+    """ASGI puro: mide y loguea la duración de cada request HTTP.
+
+    Emite un único log `request completed` al terminar, con `method`, `path`,
+    `status_code` y `duration_ms` (dos decimales). Como corre dentro del
+    contexto de `RequestIdMiddleware`, el `request_id` lo resuelve solo el
+    `RequestIdFormatter` vía su ContextVar.
+
+    Un `5xx` se loguea en `warning`, no en `error`: el error de verdad ya lo
+    registra la app con su traceback, y este log es de latencia; subirlo a
+    error duplicaría la alerta. KISS: un único umbral, sin configuración extra.
+    """
+
+    def __init__(self, app: Any):
+        self.app = app
+
+    async def __call__(self, scope: dict, receive: Any, send: Any) -> None:
+        # Solo las requests HTTP tienen una respuesta que cronometrar.
+        if scope.get("type") != "http":
+            await self.app(scope, receive, send)
+            return
+
+        method = scope.get("method", "")
+        path = scope.get("path", "")
+        # Si la app revienta antes de iniciar la respuesta, el server responde 500.
+        status_code = _SERVER_ERROR_STATUS
+        started_at = time.perf_counter()
+
+        async def capture_status(message: dict) -> None:
+            nonlocal status_code
+            if message["type"] == "http.response.start":
+                status_code = message["status"]
+            await send(message)
+
+        try:
+            await self.app(scope, receive, capture_status)
+        finally:
+            duration_ms = round((time.perf_counter() - started_at) * 1000, 2)
+            level = logging.WARNING if status_code >= _SERVER_ERROR_STATUS else logging.INFO
+            logger.log(
+                level,
+                "request completed",
+                extra={
+                    "method": method,
+                    "path": path,
+                    "status_code": status_code,
+                    "duration_ms": duration_ms,
+                },
+            )
