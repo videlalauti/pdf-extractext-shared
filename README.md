@@ -19,7 +19,7 @@ Se instala por URL del zip del tag. No hace falta `git` ni registry privado, y
 el tag acts como pinneado reproducible:
 
 ```bash
-pip install "https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.0.0.zip"
+pip install "https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.1.0.zip"
 ```
 
 El paquete **no tiene dependencias de runtime obligatorias**. Solo `extraction`
@@ -28,19 +28,19 @@ referencia directa PEP 508 (`nombre[extra] @ url`): `URL[pypdf]` no funciona,
 porque pip interpretaría los corchetes como parte de la URL y daría 404.
 
 ```bash
-pip install "pdf-extractext-shared[pypdf] @ https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.0.0.zip"
+pip install "pdf-extractext-shared[pypdf] @ https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.1.0.zip"
 ```
 
 En `requirements.txt`, que es como lo van a usar los servicios:
 
 ```text
 # validation / persistence / summary
-pdf-extractext-shared @ https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.0.0.zip
+pdf-extractext-shared @ https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.1.0.zip
 ```
 
 ```text
 # extraction
-pdf-extractext-shared[pypdf] @ https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.0.0.zip
+pdf-extractext-shared[pypdf] @ https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.1.0.zip
 ```
 
 | Servicio | Instala | Usa `pypdf` |
