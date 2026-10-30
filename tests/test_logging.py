@@ -16,6 +16,8 @@ from shared.web.logging import (
     RequestIdMiddleware,
     get_request_id,
     new_request_id,
+    request_id_header,
+    reset_request_id,
     set_request_id,
     setup_logging,
 )
@@ -104,8 +106,6 @@ def test_log_format_has_time_level_service_request_id_and_message(capsys):
     try:
         logging.getLogger("prueba").info("hola")
     finally:
-        from shared.web.logging import reset_request_id
-
         reset_request_id(token)
 
     fields = parse_line(capsys.readouterr().out.strip())
@@ -357,3 +357,28 @@ async def test_the_middleware_works_as_starlette_middleware():
 
     assert response.status_code == 200
     assert response.headers["x-request-id"] == "abc-123"
+
+
+# --------------------------------------------------------------------------- #
+# request_id_header
+# --------------------------------------------------------------------------- #
+
+
+def test_request_id_header_is_empty_without_context():
+    """Sin request en curso no se inventa un id: el peer genera el suyo."""
+    assert request_id_header() == {}
+
+
+def test_request_id_header_carries_the_current_id():
+    token = set_request_id("abc-123")
+    try:
+        assert request_id_header() == {"X-Request-Id": "abc-123"}
+    finally:
+        reset_request_id(token)
+
+
+def test_request_id_header_is_empty_after_reset():
+    token = set_request_id("abc-123")
+    reset_request_id(token)
+
+    assert request_id_header() == {}

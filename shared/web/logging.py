@@ -2,7 +2,8 @@
 
 Es la parte de "observabilidad" del 12-Factor: los logs van a stdout (el runtime
 los recolecta) y cada request queda trazado por un identificador que viaja en
-la cabecera `X-Request-Id` y se propaga al peer en la respuesta.
+la cabecera `X-Request-Id`, se devuelve en la respuesta y se reenvía a los peers
+en las llamadas salientes.
 """
 
 import logging
@@ -13,6 +14,10 @@ from contextvars import ContextVar
 from typing import Any
 
 REQUEST_ID_HEADER = "x-request-id"
+# Forma canónica para las llamadas salientes: el scope ASGI entrega los nombres
+# en minúsculas, pero el dict de headers de un cliente HTTP es case-sensitive,
+# así que reusar `REQUEST_ID_HEADER` haría que el peer no encuentre el valor.
+REQUEST_ID_HEADER_OUTBOUND = "X-Request-Id"
 
 LOG_FORMAT = "%(asctime)s %(levelname)s %(service)s %(request_id)s %(message)s"
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S%z"
@@ -39,6 +44,18 @@ def reset_request_id(token: Any) -> None:
 
 def new_request_id() -> str:
     return uuid.uuid4().hex
+
+
+def request_id_header() -> dict[str, str]:
+    """Cabecera para reenviar el `request_id` actual a otro servicio.
+
+    Devuelve `{}` cuando no hay request en curso (`-`), para que el llamador
+    pueda pasarla directo como `headers=request_id_header()` sin condicionales.
+    """
+    request_id = get_request_id()
+    if request_id == "-":
+        return {}
+    return {REQUEST_ID_HEADER_OUTBOUND: request_id}
 
 
 class RequestIdFormatter(logging.Formatter):
