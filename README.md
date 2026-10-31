@@ -19,7 +19,7 @@ Se instala por URL del zip del tag. No hace falta `git` ni registry privado, y
 el tag acts como pinneado reproducible:
 
 ```bash
-pip install "https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.1.0.zip"
+pip install "https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.2.0.zip"
 ```
 
 El paquete **no tiene dependencias de runtime obligatorias**. Solo `extraction`
@@ -28,19 +28,19 @@ referencia directa PEP 508 (`nombre[extra] @ url`): `URL[pypdf]` no funciona,
 porque pip interpretaría los corchetes como parte de la URL y daría 404.
 
 ```bash
-pip install "pdf-extractext-shared[pypdf] @ https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.1.0.zip"
+pip install "pdf-extractext-shared[pypdf] @ https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.2.0.zip"
 ```
 
 En `requirements.txt`, que es como lo van a usar los servicios:
 
 ```text
 # validation / persistence / summary
-pdf-extractext-shared @ https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.1.0.zip
+pdf-extractext-shared @ https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.2.0.zip
 ```
 
 ```text
 # extraction
-pdf-extractext-shared[pypdf] @ https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.1.0.zip
+pdf-extractext-shared[pypdf] @ https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.2.0.zip
 ```
 
 | Servicio | Instala | Usa `pypdf` |
@@ -112,6 +112,22 @@ trae el id de la request que lo escribió. El id del cliente se acepta solo si e
 corto y sin caracteres de control: se refleja en logs y cabeceras, y un
 `X-Request-Id` con saltos de línea los contaminaría. La respuesta siempre
 devuelve el `X-Request-Id` con el que se atendió.
+
+#### Propagar el id a otros servicios
+
+```python
+import httpx
+from shared.web.logging import request_id_header
+
+async def persistir(client: httpx.AsyncClient, url: str, payload: dict) -> None:
+    await client.post(url, json=payload, headers=request_id_header())
+```
+
+`request_id_header()` devuelve `{"X-Request-Id": "<id actual>"}`, o `{}` si se
+llama fuera de una request (no inventa un id en el aire). La clave es
+`REQUEST_ID_HEADER_OUTBOUND = "X-Request-Id"`, **con mayúsculas**: los diccionarios
+de headers de `httpx` distinguen mayúsculas de minúsculas, y el peer normaliza a
+minúsculas al leerlas.
 
 ### Resiliencia
 
