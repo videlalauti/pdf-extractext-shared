@@ -17,7 +17,12 @@ from starlette.applications import Starlette
 from starlette.responses import PlainTextResponse
 from starlette.routing import Route
 
-from shared.web.logging import RequestIdMiddleware, TimingMiddleware, setup_logging
+from shared.web.logging import (
+    RequestIdFormatter,
+    RequestIdMiddleware,
+    TimingMiddleware,
+    setup_logging,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -74,7 +79,11 @@ async def call(app, path: str = "/resource", headers: dict | None = None) -> htt
 
 
 def timing_records(caplog) -> list[logging.LogRecord]:
-    return [record for record in caplog.records if record.getMessage() == "request completed"]
+    return [
+        record
+        for record in caplog.records
+        if record.getMessage().startswith("request completed")
+    ]
 
 
 # --------------------------------------------------------------------------- #
@@ -117,6 +126,26 @@ async def test_duration_is_rounded_to_two_decimals(monkeypatch, caplog):
         await TimingMiddleware(ok_app)(scope, receive, send)
 
     assert timing_records(caplog)[0].duration_ms == 234.56
+
+
+# --------------------------------------------------------------------------- #
+# Renderizado en producción
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.asyncio
+async def test_the_formatted_line_renders_the_measurements(caplog):
+    """Regresión: los campos iban solo en `extra` y el formatter no los imprimía."""
+    with caplog.at_level(logging.INFO):
+        await call(build_app(ok))
+
+    record = timing_records(caplog)[0]
+    line = RequestIdFormatter("extraction-service").format(record)
+
+    assert "method=GET" in line
+    assert "path=/resource" in line
+    assert "status=200" in line
+    assert "duration_ms=" in line
 
 
 # --------------------------------------------------------------------------- #
@@ -211,4 +240,9 @@ async def test_the_timing_log_carries_the_request_id(capsys):
 
     await call(app, headers={"X-Request-Id": "abc-123"})
 
-    assert "abc-123" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "abc-123" in out
+    assert "method=GET" in out
+    assert "path=/resource" in out
+    assert "status=200" in out
+    assert "duration_ms=" in out

@@ -164,8 +164,12 @@ class TimingMiddleware:
     """ASGI puro: mide y loguea la duración de cada request HTTP.
 
     Emite un único log `request completed` al terminar, con `method`, `path`,
-    `status_code` y `duration_ms` (dos decimales). Como corre dentro del
-    contexto de `RequestIdMiddleware`, el `request_id` lo resuelve solo el
+    `status_code` y `duration_ms` (dos decimales). Los valores van **en el
+    mensaje** además de en `extra`: `RequestIdFormatter` no renderiza `extra`,
+    así que un log que solo los pase por ahí se pierde en producción. No se
+    agregan placeholders a `LOG_FORMAT` porque obligarían a que todo record
+    tenga esos atributos. Como corre dentro del contexto de
+    `RequestIdMiddleware`, el `request_id` lo resuelve solo el
     `RequestIdFormatter` vía su ContextVar.
 
     Un `5xx` se loguea en `warning`, no en `error`: el error de verdad ya lo
@@ -201,7 +205,11 @@ class TimingMiddleware:
             level = logging.WARNING if status_code >= _SERVER_ERROR_STATUS else logging.INFO
             logger.log(
                 level,
-                "request completed",
+                "request completed method=%s path=%s status=%d duration_ms=%.2f",
+                method,
+                path,
+                status_code,
+                duration_ms,
                 extra={
                     "method": method,
                     "path": path,
