@@ -44,7 +44,7 @@ jobs:
       - name: Instalar el paquete desde el zip del tag, sin git ni registry
         run: |
           python -m pip install --upgrade pip
-          pip install "https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.2.0.zip"
+          pip install "https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.3.0.zip"
 
       - name: Verificar la instalación y sus metadatos
         run: |
@@ -57,7 +57,7 @@ jobs:
           import shared.web.resilience
           from shared.web.logging import REQUEST_ID_HEADER_OUTBOUND, request_id_header
 
-          assert version("pdf-extractext-shared") == "1.2.0", "versión inesperada"
+          assert version("pdf-extractext-shared") == "1.3.0", "versión inesperada"
 
           assert REQUEST_ID_HEADER_OUTBOUND == "X-Request-Id"
           assert request_id_header() == {}, "fuera de una request no hay id que propagar"
