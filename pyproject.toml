@@ -29,6 +29,7 @@ pypdf = ["pypdf"]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
+    "pytest-cov>=7.0",
     "ruff>=0.6",
     # starlette/httpx solo para testear shared.web.cors: no son deps del paquete,
     # por eso el job que instala desde la URL del tag sigue sin verlas.
