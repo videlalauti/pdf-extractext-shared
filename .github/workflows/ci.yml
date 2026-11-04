@@ -30,8 +30,8 @@ jobs:
       - name: ruff check
         run: ruff check .
 
-      - name: pytest
-        run: pytest tests/ -v
+      - name: pytest con cobertura
+        run: pytest tests/ -v --cov=shared --cov-report=term-missing --cov-fail-under=80
 
   install-from-url:
     name: instalar desde la URL del tag
