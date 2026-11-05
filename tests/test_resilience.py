@@ -430,3 +430,52 @@ async def test_breaker_and_retry_together_stop_hammering_a_dead_peer():
         await persist()
 
     assert calls == 6
+
+
+@pytest.mark.asyncio
+async def test_breaker_does_not_open_on_document_4xx_responses():
+    """Un 400/404/409 significa que el peer contesto; no es indisponibilidad."""
+    breaker = CircuitBreaker(service="persistence", failure_threshold=1)
+
+    async def conflict() -> None:
+        raise FakeHttpError(409)
+
+    for _ in range(10):
+        with pytest.raises(FakeHttpError):
+            await breaker.call(conflict)
+
+    assert breaker.state is CircuitState.CLOSED
+    assert breaker.failure_count == 0
+
+
+@pytest.mark.asyncio
+async def test_half_open_closes_if_peer_returns_business_4xx():
+    """Un 409 en el sondeo prueba que el peer se recupero."""
+    breaker = CircuitBreaker(service="persistence", failure_threshold=1, recovery_timeout=0.01)
+
+    with pytest.raises(ConnectionError):
+        await breaker.call(_always_fails)
+
+    await asyncio.sleep(0.02)
+    assert breaker.state is CircuitState.HALF_OPEN
+
+    async def valid_conflict() -> None:
+        raise FakeHttpError(409)
+
+    with pytest.raises(FakeHttpError):
+        await breaker.call(valid_conflict)
+    assert breaker.state is CircuitState.CLOSED
+
+
+@pytest.mark.asyncio
+async def test_breaker_keeps_counting_transient_5xx():
+    breaker = CircuitBreaker(service="persistence", failure_threshold=2)
+
+    async def upstream_503() -> None:
+        raise FakeHttpError(503)
+
+    for _ in range(2):
+        with pytest.raises(FakeHttpError):
+            await breaker.call(upstream_503)
+
+    assert breaker.state is CircuitState.OPEN
