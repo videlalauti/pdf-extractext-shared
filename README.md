@@ -19,7 +19,7 @@ Se instala por URL del zip del tag. No hace falta `git` ni registry privado, y
 el tag acts como pinneado reproducible:
 
 ```bash
-pip install "https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.3.0.zip"
+pip install "https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.3.1.zip"
 ```
 
 El paquete **no tiene dependencias de runtime obligatorias**. Solo `extraction`
@@ -28,19 +28,19 @@ referencia directa PEP 508 (`nombre[extra] @ url`): `URL[pypdf]` no funciona,
 porque pip interpretaría los corchetes como parte de la URL y daría 404.
 
 ```bash
-pip install "pdf-extractext-shared[pypdf] @ https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.3.0.zip"
+pip install "pdf-extractext-shared[pypdf] @ https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.3.1.zip"
 ```
 
 En `requirements.txt`, que es como lo van a usar los servicios:
 
 ```text
 # validation / persistence / summary
-pdf-extractext-shared @ https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.3.0.zip
+pdf-extractext-shared @ https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.3.1.zip
 ```
 
 ```text
 # extraction
-pdf-extractext-shared[pypdf] @ https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.3.0.zip
+pdf-extractext-shared[pypdf] @ https://github.com/videlalauti/pdf-extractext-shared/archive/refs/tags/v1.3.1.zip
 ```
 
 | Servicio | Instala | Usa `pypdf` |
@@ -191,3 +191,25 @@ servicio lo descubra en producción.
 
 Semver. Subir la versión en `pyproject.toml` **y** en la URL de instalación del
 README y del CI, y recién ahí taggear.
+
+
+## Diferencia entre breakers y politica de despliegue
+
+Este paquete provee un **Circuit Breaker local por proceso** (Extraction lo usa
+como defensa adicional en llamadas a Persistence). En la nueva configuracion de
+Infra, **Traefik** implementa el breaker centralizado de trafico HTTP interno y
+externo mediante su middleware `http-breaker`. Son capas distintas: el breaker
+de Shared no sustituye al proxy, ni protege Kafka/Redis/Mongo.
+
+**Correccion propuesta en esta rama:** errores HTTP `4xx` (incluido 409
+por checksum duplicado) no se consideran fallas de disponibilidad; un peer que
+respondio un 4xx esta accesible. Los 5xx, fallos de red, timeouts y cancelaciones
+si cuentan; el estado semi-abierto se cierra ante un 4xx al considerar sano al
+peer. Hay pruebas unitarias para esos escenarios.
+
+**Atencion al versionado:** los microservicios deben migrar sus dependencias de **v1.3.0** a **v1.3.1**.
+Integrar esta rama en `main` de Shared NO actualiza automaticamente el paquete
+instalado por Docker. Para desplegar el cambio: publicar un nuevo tag (p. ej.
+`v1.3.1`, con la version de `pyproject.toml` sincronizada), regenerar los
+locks de los servicios consumidores, reconstruir imagenes y repetir E2E.
+No recrear ni mover `v1.3.0`.

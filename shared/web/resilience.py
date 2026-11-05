@@ -188,9 +188,14 @@ class CircuitBreaker:
         await self._before_call()
         try:
             result = await asyncio.wait_for(func(*args, **kwargs), timeout=self.call_timeout)
-        except BaseException:
-            # CancelledError también cuenta como falla: el peer no respondió.
-            await self._record_failure()
+        except BaseException as error:
+            # Los 4xx indican que el servicio respondió: NO es una caída.
+            # No abrir el circuito por PDF inválidos o documentos duplicados.
+            # CancelledError sí cuenta como una llamada no completada.
+            if isinstance(error, asyncio.CancelledError) or is_transient_error(error):
+                await self._record_failure()
+            else:
+                await self._record_success()
             raise
         await self._record_success()
         return result
