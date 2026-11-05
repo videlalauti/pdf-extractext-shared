@@ -191,3 +191,25 @@ servicio lo descubra en producción.
 
 Semver. Subir la versión en `pyproject.toml` **y** en la URL de instalación del
 README y del CI, y recién ahí taggear.
+
+
+## Diferencia entre breakers y politica de despliegue
+
+Este paquete provee un **Circuit Breaker local por proceso** (Extraction lo usa
+como defensa adicional en llamadas a Persistence). En la nueva configuracion de
+Infra, **Traefik** implementa el breaker centralizado de trafico HTTP interno y
+externo mediante su middleware `http-breaker`. Son capas distintas: el breaker
+de Shared no sustituye al proxy, ni protege Kafka/Redis/Mongo.
+
+**Correccion propuesta en esta rama:** errores HTTP `4xx` (incluido 409
+por checksum duplicado) no se consideran fallas de disponibilidad; un peer que
+respondio un 4xx esta accesible. Los 5xx, fallos de red, timeouts y cancelaciones
+si cuentan; el estado semi-abierto se cierra ante un 4xx al considerar sano al
+peer. Hay pruebas unitarias para esos escenarios.
+
+**Atencion al versionado:** los microservicios usan una URL fijada a **v1.3.0**.
+Integrar esta rama en `main` de Shared NO actualiza automaticamente el paquete
+instalado por Docker. Para desplegar el cambio: publicar un nuevo tag (p. ej.
+`v1.3.1`, con la version de `pyproject.toml` sincronizada), regenerar los
+locks de los servicios consumidores, reconstruir imagenes y repetir E2E.
+No recrear ni mover `v1.3.0`.
